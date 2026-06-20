@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BlockCraft 3D</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;overflow:hidden;background:#000;width:100%;height:100%;touch-action:none;}
+#c{display:block;position:fixed;top:0;left:0;width:100%;height:100%;}
+
+#crosshair{position:fixed;top:50%;left:50%;pointer-events:none;z-index:50;transform:translate(-50%,-50%);}
+#crosshair:before,#crosshair:after{content:'';position:absolute;background:rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.9);}
+#crosshair:before{width:3px;height:24px;left:50%;margin-left:-1.5px;top:0;}
+#crosshair:after{height:3px;width:24px;top:50%;margin-top:-1.5px;left:0;}
+
+/* ---- MOBILE JOYSTICK ---- */
+#mobileUI{position:fixed;bottom:0;left:0;width:100%;height:100%;z-index:40;pointer-events:none;}
+#joystickZone{position:absolute;bottom:20px;left:20px;width:130px;height:130px;pointer-events:all;}
+#joystickBase{position:absolute;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.35);}
+#joystickKnob{position:absolute;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.5);top:39px;left:39px;border:2px solid rgba(255,255,255,0.8);}
+#lookZone{position:absolute;right:0;bottom:0;width:55%;height:70%;pointer-events:all;}
+
+/* Aksiyon butonları */
+#btnBreak{position:absolute;bottom:120px;right:20px;width:66px;height:66px;border-radius:50%;background:rgba(220,60,60,0.75);border:3px solid rgba(255,100,100,0.9);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;}
+#btnPlace{position:absolute;bottom:40px;right:100px;width:66px;height:66px;border-radius:50%;background:rgba(60,140,220,0.75);border:3px solid rgba(100,180,255,0.9);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;}
+#btnJump{position:absolute;bottom:40px;right:20px;width:66px;height:66px;border-radius:50%;background:rgba(60,200,100,0.75);border:3px solid rgba(100,255,140,0.9);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;pointer-events:all;user-select:none;}
+
+/* HUD */
+#hud{position:fixed;left:0;bottom:0;width:100%;z-index:45;pointer-events:none;display:flex;flex-direction:column;align-items:center;padding-bottom:8px;}
+#hotbar{display:flex;gap:3px;background:rgba(0,0,0,0.45);padding:5px;border-radius:5px;border:2px solid rgba(255,255,255,0.25);pointer-events:all;}
+.slot{width:50px;height:50px;background:rgba(50,50,50,0.7);border:2px solid #666;border-radius:3px;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;}
+.slot.active{border-color:#fff;box-shadow:0 0 10px rgba(255,255,255,0.7);}
+.slot canvas{width:38px;height:38px;image-rendering:pixelated;}
+
+#healthbar{display:flex;gap:2px;margin-bottom:5px;}
+.heart{width:20px;height:18px;}
+.heart svg{width:100%;height:100%;}
+
+#topinfo{position:fixed;top:8px;left:8px;color:#fff;z-index:50;font-size:12px;text-shadow:1px 1px 2px #000;background:rgba(0,0,0,0.4);padding:6px 10px;border-radius:6px;line-height:1.6;pointer-events:none;font-family:sans-serif;}
+#clock{position:fixed;top:8px;right:8px;z-index:50;color:#fff;text-shadow:1px 1px 2px #000;background:rgba(0,0,0,0.4);padding:6px 12px;border-radius:6px;font-size:13px;text-align:center;pointer-events:none;font-family:sans-serif;}
+#sunmoon{font-size:18px;}
+
+#blocker{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;background:linear-gradient(160deg,#3d8b40,#2c5e2f);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;padding:20px;}
+#blocker h1{font-size:40px;margin:0 0 8px;text-shadow:3px 3px 0 #1a3d1c;font-family:sans-serif;}
+#blocker p{font-size:14px;max-width:340px;line-height:1.5;text-shadow:1px 1px 1px #000;font-family:sans-serif;}
+#startBtn{margin-top:18px;padding:14px 36px;font-size:20px;background:#3d8b40;color:#fff;border:3px solid #2c5e2f;cursor:pointer;border-radius:6px;box-shadow:0 4px 0 #1a3d1c;font-weight:bold;}
+#startBtn:active{box-shadow:0 1px 0 #1a3d1c;transform:translateY(3px);}
+
+#deathScreen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;background:rgba(100,0,0,0.88);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;font-family:sans-serif;}
+#deathScreen h1{font-size:52px;margin:0;text-shadow:3px 3px 0 #000;}
+#respawnBtn{margin-top:20px;padding:12px 28px;font-size:17px;background:#666;color:#fff;border:3px solid #333;cursor:pointer;border-radius:6px;}
+
+#fadeOverlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:60;pointer-events:none;background:rgba(255,0,0,0);transition:background 0.4s;}
+#damageVignette{position:fixed;top:0;left:0;width:100%;height:100%;z-index:55;pointer-events:none;opacity:0;transition:opacity 0.4s;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,0.6) 100%);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="fadeOverlay"></div>
+<div id="damageVignette"></div>
+<div id="crosshair"></div>
+
+<div id="topinfo"><span id="fps">FPS: -</span><br><span id="blockInfo"></span></div>
+<div id="clock"><div id="sunmoon">☀️</div><div id="timeText">06:00</div></div>
+
+<div id="hud">
+  <div id="healthbar"></div>
+  <div id="hotbar"></div>
+</div>
+
+<!-- Mobil UI -->
+<div id="mobileUI">
+  <div id="joystickZone">
+    <div id="joystickBase"></div>
+    <div id="joystickKnob"></div>
+  </div>
+  <div id="lookZone"></div>
+  <div id="btnBreak">⛏️</div>
+  <div id="btnPlace">🧱</div>
+  <div id="btnJump">⬆️</div>
+</div>
+
+<div id="deathScreen">
+  <h1>💀 ÖLDÜN</h1>
+  <p>Bir zombi seni yakaladı...</p>
+  <button id="respawnBtn">Yeniden Doğ</button>
+</div>
+
+<div id="blocker">
+  <h1>⛏️ BlockCraft 3D</h1>
+  <p>Texture'lı bloklar · Gece/Gündüz döngüsü · Zombiler</p>
+  <p style="font-size:12px;margin-top:8px;opacity:0.85;">
+    📱 Mobil: Sol joystick hareket, sağ alan kamera, ⛏️ kır/vur, 🧱 koy, ⬆️ zıpla<br>
+    💻 PC: WASD+fare, sol tık kır, sağ tık koy, Boşluk zıpla
+  </p>
+  <button id="startBtn">OYUNA BAŞLA</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+// ─── SABITLER ───────────────────────────────────────────────────────
+const WORLD_R = 32;       // dünya yarıçapı blok
+const WORLD_H = 32;       // max yükseklik
+const SEA_LEVEL = 10;
+const DAY_LEN = 200;      // saniye/döngü
+const BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,WOOD:5,LEAVES:6,WATER:7,BEDROCK:8,PLANK:9,COAL:10,GOLD:11,SNOW:12};
+
+// ─── PROSEDÜREL TEXTURE ─────────────────────────────────────────────
+function mkCanvas(s){const c=document.createElement('canvas');c.width=c.height=s;return c;}
+function rng(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+function speckle(ctx,size,colors,seed,density){
+  // Minecraft tarzı doku: ana (en yaygın) renk zemin olur, diğerleri seyrek "leke" olarak serpiştirilir
+  const r=rng(seed),px=size/16;
+  density = density===undefined?0.35:density;
+  ctx.fillStyle=colors[0];
+  ctx.fillRect(0,0,size,size);
+  for(let y=0;y<16;y++){
+    for(let x=0;x<16;x++){
+      if(r()<density){
+        ctx.fillStyle=colors[1+Math.floor(r()*(colors.length-1))];
+        ctx.fillRect(x*px,y*px,px,px);
+      }
+    }
+  }
+}
+
+function tGrassTop(){
+  const s=64,c=mkCanvas(s),x=c.getContext('2d');
+  speckle(x,s,['#5d9c41','#549236','#65a847'],101,0.22);
+  // ince organik doku noktaları
+  const r=rng(7),p=s/16;
+  for(let i=0;i<14;i++){
+    x.fillStyle=r()>.5?'rgba(130,195,95,0.35)':'rgba(60,105,35,0.3)';
+    x.fillRect(Math.floor(r()*16)*p,Math.floor(r()*16)*p,p,p);
+  }
+  return c;
+}
+function tDirt(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#8a5a36','#7d4f2f','#946642'],202,0.3);return c;}
+function tGrassSide(){
+  const s=64,c=mkCanvas(s),x=c.getContext('2d');
+  speckle(x,s,['#8a5a36','#7d4f2f','#946642'],202,0.3);
+  const p=s/16;
+  x.fillStyle='#5d9c41';x.fillRect(0,0,s,p*3);
+  const r=rng(303);
+  for(let i=0;i<16;i++){
+    const h=(2+(r()>.6?1:0))*p;
+    x.fillStyle=r()>.5?'#65a847':'#549236';
+    x.fillRect(i*p,p*2,p,h-p*2>0?h-p*2:p);
+  }
+  // çimen-toprak geçiş gölgesi
+  x.fillStyle='rgba(40,25,10,0.25)';x.fillRect(0,p*3,s,p*0.4);
+  return c;
+}
+function tStone(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#888','#7e7e7e','#959595'],404,0.3);x.strokeStyle='rgba(50,50,50,0.35)';x.lineWidth=1.5;const r=rng(55);for(let i=0;i<4;i++){x.beginPath();x.moveTo(r()*s,r()*s);x.lineTo(r()*s,r()*s);x.stroke();}return c;}
+function tSand(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#ddcc8c','#e0d091','#d6c581'],606,0.25);return c;}
+function tWoodSide(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#6b4a2c','#74522f'],707,0.25);const p=s/16;x.fillStyle='rgba(40,25,12,0.4)';for(let i=0;i<16;i+=3)x.fillRect(i*p,0,p*.5,s);return c;}
+function tWoodTop(){const s=64,c=mkCanvas(s),x=c.getContext('2d');x.fillStyle='#8a6336';x.fillRect(0,0,s,s);for(let r=s/2;r>0;r-=4){x.beginPath();x.strokeStyle=r%8<4?'#7a5630':'#8f6a3c';x.lineWidth=4;x.arc(s/2,s/2,r,0,Math.PI*2);x.stroke();}return c;}
+function tLeaves(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#2f6e1f','#377d24','#286015'],808,0.32);return c;}
+function tPlank(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#b98955','#c2925d'],111,0.2);const p=s/16;x.strokeStyle='rgba(80,50,20,0.5)';x.lineWidth=1;for(let y=0;y<16;y+=4){x.beginPath();x.moveTo(0,y*p);x.lineTo(s,y*p);x.stroke();}return c;}
+function tSnow(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#f3f7fb','#ffffff'],1212,0.15);return c;}
+function tWater(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#2a6fb0','#3179b8','#256aa8'],1313,0.3);return c;}
+function tBedrock(){const s=64,c=mkCanvas(s),x=c.getContext('2d');speckle(x,s,['#3a3a3a','#2e2e2e','#222'],1414,0.35);return c;}
+function tOre(base,col,cnt,seed){const c=base(),x=c.getContext('2d'),s=c.width,p=s/16,r=rng(seed);for(let i=0;i<cnt;i++){const bx=Math.floor(r()*14)+1,by=Math.floor(r()*14)+1;x.fillStyle=col;x.fillRect(bx*p,by*p,p*1.8,p*1.8);}return c;}
+
+function mktex(canvas){const t=new THREE.CanvasTexture(canvas);t.magFilter=t.minFilter=THREE.NearestFilter;return t;}
+
+const T={
+  grassTop:mktex(tGrassTop()),grassSide:mktex(tGrassSide()),dirt:mktex(tDirt()),
+  stone:mktex(tStone()),sand:mktex(tSand()),woodSide:mktex(tWoodSide()),woodTop:mktex(tWoodTop()),
+  leaves:mktex(tLeaves()),plank:mktex(tPlank()),snow:mktex(tSnow()),water:mktex(tWater()),
+  bedrock:mktex(tBedrock()),coal:mktex(tOre(tStone,'#1a1a1a',5,2020)),gold:mktex(tOre(tStone,'#e8c84a',4,2021))
+};
+
+function mat(tex,transp){return new THREE.MeshLambertMaterial({map:tex,transparent:!!transp,opacity:transp?.82:1,side:THREE.DoubleSide});}
+function arr6(m){return[m,m,m,m,m,m];}
+function getMats(type){
+  const s=mat(T.stone),d=mat(T.dirt);
+  switch(type){
+    case BLOCK.GRASS:return[mat(T.grassSide),mat(T.grassSide),mat(T.grassTop),d,mat(T.grassSide),mat(T.grassSide)];
+    case BLOCK.DIRT:return arr6(d);
+    case BLOCK.STONE:return arr6(s);
+    case BLOCK.COAL:return arr6(mat(T.coal));
+    case BLOCK.GOLD:return arr6(mat(T.gold));
+    case BLOCK.SAND:return arr6(mat(T.sand));
+    case BLOCK.WOOD:return[mat(T.woodSide),mat(T.woodSide),mat(T.woodTop),mat(T.woodTop),mat(T.woodSide),mat(T.woodSide)];
+    case BLOCK.LEAVES:return arr6(mat(T.leaves,true));
+    case BLOCK.PLANK:return arr6(mat(T.plank));
+    case BLOCK.SNOW:return[mat(T.snow),mat(T.snow),mat(T.snow),d,mat(T.snow),mat(T.snow)];
+    case BLOCK.BEDROCK:return arr6(mat(T.bedrock));
+    default:return arr6(s);
+  }
+}
+
+// ─── DÜNYA VERİSİ ───────────────────────────────────────────────────
+const world=new Map();
+function wkey(x,y,z){return x+','+y+','+z;}
+function getB(x,y,z){if(y<0||y>=WORLD_H)return BLOCK.AIR;return world.get(wkey(x,y,z))??BLOCK.AIR;}
+function setB(x,y,z,t){if(t===BLOCK.AIR)world.delete(wkey(x,y,z));else world.set(wkey(x,y,z),t);}
+
+function smoothN(x,z,seed){
+  function h(x,z){let v=Math.sin(x*127.1+z*311.7+seed)*43758.5;return v-Math.floor(v);}
+  const xi=Math.floor(x),zi=Math.floor(z),xf=x-xi,zf=z-zi;
+  const u=xf*xf*(3-2*xf),v=zf*zf*(3-2*zf);
+  const top = h(xi,zi)*(1-u) + h(xi+1,zi)*u;
+  const bottom = h(xi,zi+1)*(1-u) + h(xi+1,zi+1)*u;
+  return top*(1-v) + bottom*v;
+}
+function octN(x,z,octs,seed){let t=0,a=1,f=1,ma=0;for(let i=0;i<octs;i++){t+=smoothN(x*f*.025,z*f*.025,seed+i*17)*a;ma+=a;a*=.5;f*=2;}return t/ma;}
+
+function genWorld(){
+  const seed=1337;
+  for(let x=-WORLD_R;x<=WORLD_R;x++){
+    for(let z=-WORLD_R;z<=WORLD_R;z++){
+      const n=octN(x,z,4,seed);
+      const bio=smoothN(x*.4,z*.4,seed+999);
+      const h=Math.floor(SEA_LEVEL+n*13);
+      const isDesert=bio>.65, isSnow=bio<.2;
+      for(let y=0;y<=h;y++){
+        let t;
+        if(y===0)t=BLOCK.BEDROCK;
+        else if(y<h-3)t=BLOCK.STONE;
+        else if(y<h)t=isDesert?BLOCK.SAND:BLOCK.DIRT;
+        else{
+          if(isDesert)t=BLOCK.SAND;
+          else if(isSnow)t=BLOCK.SNOW;
+          else if(h<=SEA_LEVEL+1)t=BLOCK.SAND;
+          else t=BLOCK.GRASS;
+        }
+        if(t===BLOCK.STONE){const o=smoothN(x*3.1,z*3.1+y*5.2,seed+55);if(o>.93)t=BLOCK.COAL;else if(o<.04)t=BLOCK.GOLD;}
+        setB(x,y,z,t);
+      }
+      if(h<SEA_LEVEL)for(let y=h+1;y<=SEA_LEVEL;y++)setB(x,y,z,BLOCK.WATER);
+      // ağaç
+      if(!isDesert&&!isSnow&&h>SEA_LEVEL+1){
+        const tr=smoothN(x+.37,z+.37,seed+777);
+        if(tr>.962){
+          const th=4+Math.floor((tr*97)%2);
+          for(let ty=1;ty<=th;ty++)setB(x,h+ty,z,BLOCK.WOOD);
+          for(let lx=-2;lx<=2;lx++)for(let lz=-2;lz<=2;lz++)for(let ly=th-1;ly<=th+1;ly++){
+            if(Math.abs(lx)+Math.abs(lz)+Math.abs(ly-th)<=3&&!(lx===0&&lz===0&&ly<th+1))
+              if(getB(x+lx,h+ly,z+lz)===BLOCK.AIR)setB(x+lx,h+ly,z+lz,BLOCK.LEAVES);
+          }
+        }
+      }
+    }
+  }
+}
+
+function surfH(x,z){for(let y=WORLD_H-1;y>=0;y--){const b=getB(x,y,z);if(b!==BLOCK.AIR&&b!==BLOCK.WATER)return y;}return SEA_LEVEL;}
+
+// ─── THREE.JS ────────────────────────────────────────────────────────
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,.1,300);
+scene.background=new THREE.Color(0x4a90d9);
+scene.fog=new THREE.Fog(0xbfe3ff,40,120);
+
+const ambient=new THREE.AmbientLight(0xffffff,.7);scene.add(ambient);
+const sun=new THREE.DirectionalLight(0xffeedd,1.0);sun.position.set(50,80,30);scene.add(sun);
+const moon=new THREE.DirectionalLight(0x7d9fc9,.0);moon.position.set(-50,80,-30);scene.add(moon);
+
+// Güneş / Ay
+function mkCelestial(r,g,b,size){
+  const c=mkCanvas(32),x=c.getContext('2d');
+  x.fillStyle=`rgb(${r},${g},${b})`;x.beginPath();x.arc(16,16,15,0,Math.PI*2);x.fill();
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshBasicMaterial({map:mktex(c),transparent:true,fog:false,depthWrite:false}));
+  scene.add(m);return m;
+}
+const sunMesh=mkCelestial(255,245,180,10);
+const moonMesh=mkCelestial(220,228,245,7);
+
+// Yıldızlar
+const starGeo=new THREE.BufferGeometry();
+const sp=new Float32Array(800*3);
+for(let i=0;i<800;i++){const th=Math.random()*Math.PI*2,ph=Math.random()*Math.PI*.5;sp[i*3]=180*Math.sin(ph)*Math.cos(th);sp[i*3+1]=180*Math.cos(ph);sp[i*3+2]=180*Math.sin(ph)*Math.sin(th);}
+starGeo.setAttribute('position',new THREE.BufferAttribute(sp,3));
+const starMat=new THREE.PointsMaterial({color:0xffffff,size:1.8,transparent:true,opacity:0,fog:false});
+scene.add(new THREE.Points(starGeo,starMat));
+
+// ─── MESH OLUŞTURMA ─────────────────────────────────────────────────
+const worldGrp=new THREE.Group();scene.add(worldGrp);
+
+// Yüz tanimlari (BoxGeometry sirasinda: +x,-x,+y,-y,+z,-z)
+// corners CCW sırada (normal yöne dışarıdan bakıldığında) - Three.js front-face = CCW
+const FACES=[
+  {d:[1,0,0], corners:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]]},   // +x
+  {d:[-1,0,0],corners:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]]},   // -x
+  {d:[0,1,0], corners:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]]},   // +y top
+  {d:[0,-1,0],corners:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]},   // -y bottom
+  {d:[0,0,1], corners:[[1,0,1],[1,1,1],[0,1,1],[0,0,1]]},   // +z
+  {d:[0,0,-1],corners:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]}    // -z
+];
+
+function buildMesh(){
+  while(worldGrp.children.length){const m=worldGrp.children[0];worldGrp.remove(m);if(m.geometry)m.geometry.dispose();}
+
+  // Tip ve yüz bazında grup
+  // yapı: map[type][faceIdx] = {pos,norm,uv,idx,cnt}
+  const groups={};
+  function getGroup(type,fi){
+    if(!groups[type])groups[type]={};
+    if(!groups[type][fi])groups[type][fi]={pos:[],norm:[],uv:[],idx:[],cnt:0};
+    return groups[type][fi];
+  }
+
+  for(const [k,type] of world){
+    if(type===BLOCK.AIR||type===BLOCK.WATER)continue;
+    const parts=k.split(',');
+    const x=+parts[0],y=+parts[1],z=+parts[2];
+
+    for(let fi=0;fi<6;fi++){
+      const f=FACES[fi];
+      const nx=x+f.d[0],ny=y+f.d[1],nz=z+f.d[2];
+      const nb=getB(nx,ny,nz);
+      if(nb!==BLOCK.AIR&&nb!==BLOCK.WATER)continue;
+
+      const g=getGroup(type,fi);
+      const base=g.cnt;
+      for(const c of f.corners){
+        g.pos.push(x+c[0]-.5,y+c[1]-.5,z+c[2]-.5);
+        g.norm.push(f.d[0],f.d[1],f.d[2]);
+      }
+      g.uv.push(0,0,1,0,1,1,0,1);
+      g.idx.push(base,base+1,base+2,base,base+2,base+3);
+      g.cnt+=4;
+    }
+  }
+
+  for(const typeStr in groups){
+    const type=+typeStr;
+    const mats=getMats(type);
+    for(let fi=0;fi<6;fi++){
+      const g=groups[type][fi];
+      if(!g||g.cnt===0)continue;
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(g.pos),3));
+      geo.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(g.norm),3));
+      geo.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(g.uv),2));
+      geo.setIndex(g.idx);
+      const mesh=new THREE.Mesh(geo,mats[fi]);
+      worldGrp.add(mesh);
+    }
+  }
+
+  buildWater();
+}
+
+let waterMesh=null;
+function buildWater(){
+  if(waterMesh){worldGrp.remove(waterMesh);waterMesh.geometry.dispose();waterMesh=null;}
+  const pos=[],norm=[],uv=[],idx=[];let cnt=0;
+  for(const[k,type]of world){
+    if(type!==BLOCK.WATER)continue;
+    const p=k.split(',');const x=+p[0],y=+p[1],z=+p[2];
+    if(getB(x,y+1,z)!==BLOCK.AIR)continue;
+    const corners=[[0,0,0],[1,0,0],[1,0,1],[0,0,1]];
+    for(const c of corners){pos.push(x+c[0]-.5,y+c[1]-.5-.08,z+c[2]-.5);norm.push(0,1,0);}
+    uv.push(0,0,1,0,1,1,0,1);
+    const b=cnt*4;idx.push(b,b+1,b+2,b,b+2,b+3);cnt++;
+  }
+  if(!cnt)return;
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
+  geo.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(norm),3));
+  geo.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(uv),2));
+  geo.setIndex(idx);
+  waterMesh=new THREE.Mesh(geo,mat(T.water,true));
+  worldGrp.add(waterMesh);
+}
+
+// ─── OYUNCU ─────────────────────────────────────────────────────────
+const player={
+  pos:new THREE.Vector3(0,0,0),
+  vel:new THREE.Vector3(),
+  yaw:0,pitch:0,
+  onGround:false,
+  health:20,maxHealth:20,
+  alive:true,invuln:0,
+  height:1.8
+};
+camera.position.copy(player.pos);
+
+const keys={};
+document.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code>='Digit1'&&e.code<='Digit8')selectSlot(+e.code[5]-1);});
+document.addEventListener('keyup',e=>{keys[e.code]=false;});
+
+// Pointer lock (masaüstü)
+let locked=false;
+canvas.addEventListener('click',()=>{if(!isMobile())canvas.requestPointerLock();});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;});
+document.addEventListener('mousemove',e=>{
+  if(!locked||!player.alive)return;
+  player.yaw-=e.movementX*.002;
+  player.pitch=Math.max(-1.55,Math.min(1.55,player.pitch-e.movementY*.002));
+});
+document.addEventListener('mousedown',e=>{
+  if(!locked||!player.alive)return;
+  if(e.button===0){if(!hitZombie())breakBlock();}
+  if(e.button===2)placeBlock();
+});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+function isMobile(){return /Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent)||('ontouchstart' in window);}
+
+// ─── MOBİL KONTROLLER ───────────────────────────────────────────────
+const mobMove={x:0,y:0};
+let joyActive=false,joyId=-1,joyBase={x:0,y:0};
+
+const jZone=document.getElementById('joystickZone');
+const jKnob=document.getElementById('joystickKnob');
+const lookZone=document.getElementById('lookZone');
+let lookPrev={x:0,y:0},lookId=-1,lookActive=false;
+
+function joyStart(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const r=jZone.getBoundingClientRect();
+    if(!joyActive){joyActive=true;joyId=t.identifier;joyBase={x:t.clientX,y:t.clientY};}
+  }
+}
+function joyMove(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===joyId){
+      const dx=t.clientX-joyBase.x,dy=t.clientY-joyBase.y;
+      const maxR=50,len=Math.sqrt(dx*dx+dy*dy);
+      const cx=len>maxR?dx/len*maxR:dx,cy=len>maxR?dy/len*maxR:dy;
+      jKnob.style.left=(39+cx)+'px';jKnob.style.top=(39+cy)+'px';
+      mobMove.x=cx/maxR;mobMove.y=cy/maxR;
+    }
+  }
+}
+function joyEnd(e){
+  for(const t of e.changedTouches){if(t.identifier===joyId){joyActive=false;joyId=-1;mobMove.x=0;mobMove.y=0;jKnob.style.left='39px';jKnob.style.top='39px';}}
+}
+jZone.addEventListener('touchstart',joyStart,{passive:false});
+jZone.addEventListener('touchmove',joyMove,{passive:false});
+jZone.addEventListener('touchend',joyEnd,{passive:false});
+
+function lookStart(e){e.preventDefault();for(const t of e.changedTouches){if(!lookActive){lookActive=true;lookId=t.identifier;lookPrev={x:t.clientX,y:t.clientY};}}}
+function lookMove(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===lookId&&player.alive){
+      const dx=t.clientX-lookPrev.x,dy=t.clientY-lookPrev.y;
+      player.yaw-=dx*.005;
+      player.pitch=Math.max(-1.55,Math.min(1.55,player.pitch-dy*.005));
+      lookPrev={x:t.clientX,y:t.clientY};
+    }
+  }
+}
+function lookEnd(e){for(const t of e.changedTouches){if(t.identifier===lookId){lookActive=false;lookId=-1;}}}
+lookZone.addEventListener('touchstart',lookStart,{passive:false});
+lookZone.addEventListener('touchmove',lookMove,{passive:false});
+lookZone.addEventListener('touchend',lookEnd,{passive:false});
+
+// Aksiyon butonları
+document.getElementById('btnBreak').addEventListener('touchstart',e=>{e.preventDefault();if(!hitZombie())breakBlock();},{passive:false});
+document.getElementById('btnPlace').addEventListener('touchstart',e=>{e.preventDefault();placeBlock();},{passive:false});
+let jumpPressed=false;
+document.getElementById('btnJump').addEventListener('touchstart',e=>{e.preventDefault();jumpPressed=true;},{passive:false});
+document.getElementById('btnJump').addEventListener('touchend',e=>{e.preventDefault();jumpPressed=false;},{passive:false});
+
+// ─── FİZİK ──────────────────────────────────────────────────────────
+function solid(x,y,z){const b=getB(Math.floor(x),Math.floor(y),Math.floor(z));return b!==BLOCK.AIR&&b!==BLOCK.WATER;}
+function playerCollides(pos){
+  const w=.28,h=player.height;
+  const pts=[[pos.x-w,pos.y,pos.z-w],[pos.x+w,pos.y,pos.z-w],[pos.x-w,pos.y,pos.z+w],[pos.x+w,pos.y,pos.z+w],
+              [pos.x-w,pos.y+h*.5,pos.z-w],[pos.x+w,pos.y+h*.5,pos.z+w],
+              [pos.x-w,pos.y+h*.95,pos.z-w],[pos.x+w,pos.y+h*.95,pos.z+w],[pos.x,pos.y+h*.95,pos.z]];
+  return pts.some(p=>solid(p[0],p[1],p[2]));
+}
+
+function updatePlayer(dt){
+  if(!player.alive)return;
+  const fwd=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
+  const right=new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw));
+  const mv=new THREE.Vector3();
+  const spd=5;
+
+  // Klavye
+  if(keys['KeyW'])mv.addScaledVector(fwd,1);
+  if(keys['KeyS'])mv.addScaledVector(fwd,-1);
+  if(keys['KeyD'])mv.addScaledVector(right,1);
+  if(keys['KeyA'])mv.addScaledVector(right,-1);
+
+  // Joystick (yukarı it = ileri git, sağa it = sağa git)
+  if(Math.abs(mobMove.x)>.05||Math.abs(mobMove.y)>.05){
+    mv.addScaledVector(fwd,-mobMove.y);
+    mv.addScaledVector(right,mobMove.x);
+  }
+
+  if(mv.lengthSq()>0)mv.normalize();
+  player.vel.x=mv.x*spd;
+  player.vel.z=mv.z*spd;
+  player.vel.y+=(-22)*dt;
+  if(player.vel.y<-40)player.vel.y=-40;
+
+  if((keys['Space']||jumpPressed)&&player.onGround){player.vel.y=9;player.onGround=false;}
+
+  const p=player.pos;
+  function tryMove(axis,val){
+    const np=p.clone();np[axis]+=val*dt;
+    if(!playerCollides(np))p[axis]=np[axis];
+    else if(axis==='y'){if(val<0)player.onGround=true;player.vel.y=0;}
+  }
+  player.onGround=false;
+  tryMove('x',player.vel.x);
+  tryMove('z',player.vel.z);
+  tryMove('y',player.vel.y);
+
+  // Sınır
+  const lim=WORLD_R-1;
+  p.x=Math.max(-lim,Math.min(lim,p.x));
+  p.z=Math.max(-lim,Math.min(lim,p.z));
+  if(p.y<-5){p.set(p.x,surfH(Math.floor(p.x),Math.floor(p.z))+2,p.z);player.vel.set(0,0,0);dmgPlayer(2);}
+
+  camera.position.set(p.x,p.y+player.height*.88,p.z);
+  camera.rotation.order='YXZ';
+  camera.rotation.y=player.yaw;
+  camera.rotation.x=player.pitch;
+
+  if(player.invuln>0)player.invuln-=dt;
+}
+
+function dmgPlayer(amount){
+  if(!player.alive||player.invuln>0)return;
+  player.health=Math.max(0,player.health-amount);
+  player.invuln=.8;
+  updateHealthUI();
+  // hasar efekti
+  const v=document.getElementById('damageVignette');
+  v.style.opacity='1';setTimeout(()=>v.style.opacity='0',300);
+  if(player.health<=0){
+    player.alive=false;
+    if(locked)document.exitPointerLock();
+    document.getElementById('deathScreen').style.display='flex';
+  }
+}
+
+// ─── BLOK KIRMA / KOYMA ─────────────────────────────────────────────
+const ray=new THREE.Raycaster();ray.far=6;
+const HOTBAR=[BLOCK.GRASS,BLOCK.DIRT,BLOCK.STONE,BLOCK.WOOD,BLOCK.PLANK,BLOCK.SAND,BLOCK.LEAVES,BLOCK.SNOW];
+let activeSlot=0;
+function selectSlot(i){activeSlot=i;document.querySelectorAll('.slot').forEach((el,j)=>el.classList.toggle('active',j===i));}
+
+let needRebuild=false;
+
+function getLook(){
+  ray.setFromCamera(new THREE.Vector2(0,0),camera);
+  const hits=ray.intersectObjects(worldGrp.children,false);
+  if(!hits.length)return null;
+  const h=hits[0];
+  const n=h.face.normal.clone();
+  const bp=h.point.clone().addScaledVector(n,-.5);
+  const bx=Math.round(bp.x),by=Math.round(bp.y),bz=Math.round(bp.z);
+  const pp=h.point.clone().addScaledVector(n,.5);
+  return{bx,by,bz,px:Math.round(pp.x),py:Math.round(pp.y),pz:Math.round(pp.z),normal:n};
+}
+
+function breakBlock(){
+  const h=getLook();if(!h)return;
+  const t=getB(h.bx,h.by,h.bz);
+  if(t===BLOCK.AIR||t===BLOCK.BEDROCK)return;
+  setB(h.bx,h.by,h.bz,BLOCK.AIR);
+  needRebuild=true;
+}
+function placeBlock(){
+  const h=getLook();if(!h)return;
+  const dx=Math.abs(h.px-player.pos.x),dz=Math.abs(h.pz-player.pos.z);
+  const inPlayer=(h.py>=Math.floor(player.pos.y)-1&&h.py<=Math.ceil(player.pos.y+player.height)&&dx<.7&&dz<.7);
+  if(inPlayer)return;
+  if(getB(h.px,h.py,h.pz)!==BLOCK.AIR)return;
+  setB(h.px,h.py,h.pz,HOTBAR[activeSlot]);
+  needRebuild=true;
+}
+
+// ─── ZOMBİ ──────────────────────────────────────────────────────────
+function mkZombieMesh(){
+  const g=new THREE.Group();
+  const sm=new THREE.MeshLambertMaterial({color:0x3a7a3a});
+  const face=mkCanvas(32);{const x=face.getContext('2d');x.fillStyle='#3a7a3a';x.fillRect(0,0,32,32);x.fillStyle='#000';x.fillRect(8,10,5,5);x.fillRect(19,10,5,5);x.fillStyle='#6e1010';x.fillRect(8,10,5,2);x.fillRect(19,10,5,2);x.fillStyle='#1c1c1c';x.fillRect(11,20,10,3);}
+  const fm=new THREE.MeshLambertMaterial({map:mktex(face)});
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),[sm,sm,sm,sm,fm,sm]);head.position.y=1.65;g.add(head);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.3),sm);body.position.y=1.05;g.add(body);
+  const ag=new THREE.BoxGeometry(.2,.7,.2);
+  const aL=new THREE.Mesh(ag,sm);aL.position.set(.38,1.0,0);g.add(aL);
+  const aR=new THREE.Mesh(ag,sm);aR.position.set(-.38,1.0,0);g.add(aR);
+  const lg=new THREE.BoxGeometry(.22,.7,.22);
+  const lL=new THREE.Mesh(lg,sm);lL.position.set(.15,.35,0);g.add(lL);
+  const lR=new THREE.Mesh(lg,sm);lR.position.set(-.15,.35,0);g.add(lR);
+  g.userData={head,aL,aR,lL,lR};
+  return g;
+}
+
+const zombies=[];
+const MAX_Z=10;
+
+// ─ Ateş efekti (gündüz zombi yanması) ─
+function mkFireTexture(){
+  const s=32,c=mkCanvas(s),x=c.getContext('2d');
+  const grad=x.createLinearGradient(0,s,0,0);
+  grad.addColorStop(0,'#ff6a00');grad.addColorStop(.45,'#ff9d00');grad.addColorStop(.75,'#ffd23a');grad.addColorStop(1,'rgba(255,220,80,0)');
+  x.fillStyle=grad;
+  x.beginPath();
+  x.moveTo(s*.5,s*.02);
+  x.bezierCurveTo(s*.85,s*.35,s*.65,s*.45,s*.8,s*.7);
+  x.bezierCurveTo(s*.9,s*.9,s*.6,s*1.0,s*.5,s*1.0);
+  x.bezierCurveTo(s*.4,s*1.0,s*.1,s*.9,s*.2,s*.7);
+  x.bezierCurveTo(s*.35,s*.45,s*.15,s*.35,s*.5,s*.02);
+  x.fill();
+  return c;
+}
+const fireTex=mktex(mkFireTexture());
+function addFireVisual(z){
+  const g=new THREE.Group();
+  for(let i=0;i<3;i++){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(.7,1.0),new THREE.MeshBasicMaterial({map:fireTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+    m.rotation.y=(i/3)*Math.PI*2;
+    m.position.y=.95;
+    g.add(m);
+  }
+  z.mesh.add(g);
+  z.fireMesh=g;
+}
+function removeFireVisual(z){
+  z.mesh.remove(z.fireMesh);
+  z.fireMesh=null;
+}
+
+function spawnZombie(){
+  if(zombies.length>=MAX_Z)return;
+  for(let att=0;att<20;att++){
+    const ang=Math.random()*Math.PI*2,dist=12+Math.random()*18;
+    const x=Math.floor(player.pos.x+Math.cos(ang)*dist);
+    const z=Math.floor(player.pos.z+Math.sin(ang)*dist);
+    if(Math.abs(x)>=WORLD_R-2||Math.abs(z)>=WORLD_R-2)continue;
+    const y=surfH(x,z);
+    if(getB(x,y,z)===BLOCK.WATER)continue;
+    const mesh=mkZombieMesh();
+    mesh.position.set(x+.5,y+1,z+.5);
+    scene.add(mesh);
+    zombies.push({mesh,pos:new THREE.Vector3(x+.5,y+1,z+.5),vel:new THREE.Vector3(),health:8,wt:Math.random()*10,atk:0,grnd:false,burning:0});
+    return;
+  }
+}
+
+const zRay=new THREE.Raycaster();zRay.far=5;
+function hitZombie(){
+  zRay.setFromCamera(new THREE.Vector2(0,0),camera);
+  const meshes=zombies.flatMap(z=>[...z.mesh.children]);
+  const hits=zRay.intersectObjects(meshes,false);
+  if(!hits.length)return false;
+  let obj=hits[0].object;
+  while(obj.parent&&!zombies.find(z=>z.mesh===obj))obj=obj.parent;
+  const z=zombies.find(zz=>zz.mesh===obj);
+  if(!z)return false;
+  z.health-=4;
+  // ufak geribildirim
+  document.getElementById('crosshair').style.transform='scale(1.5)';
+  setTimeout(()=>document.getElementById('crosshair').style.transform='scale(1)',100);
+  return true;
+}
+
+function zCollide(pos){
+  const w=.25,h=1.8;
+  return[[pos.x-w,pos.y,pos.z-w],[pos.x+w,pos.y,pos.z-w],[pos.x-w,pos.y,pos.z+w],[pos.x+w,pos.y,pos.z+w],
+         [pos.x-w,pos.y+h*.9,pos.z-w],[pos.x+w,pos.y+h*.9,pos.z+w]].some(p=>solid(p[0],p[1],p[2]));
+}
+
+function canSeeSky(x,y,z){
+  for(let cy=Math.ceil(y)+1; cy<WORLD_H; cy++){
+    const b=getB(Math.floor(x),cy,Math.floor(z));
+    if(b!==BLOCK.AIR&&b!==BLOCK.WATER)return false;
+  }
+  return true;
+}
+
+function updateZombies(dt,isDay){
+  for(let i=zombies.length-1;i>=0;i--){
+    const z=zombies[i];
+    if(z.health<=0){scene.remove(z.mesh);zombies.splice(i,1);continue;}
+    const tp=new THREE.Vector3(player.pos.x-z.pos.x,0,player.pos.z-z.pos.z);
+    const dist=tp.length();
+    const spd=isDay?0.9:2.0;
+    if(dist<16){tp.normalize();z.vel.x=tp.x*spd;z.vel.z=tp.z*spd;z.mesh.rotation.y=Math.atan2(tp.x,tp.z);}
+    else{z.wt+=dt;z.vel.x=Math.sin(z.wt*.5)*.3;z.vel.z=Math.cos(z.wt*.3)*.3;}
+    z.vel.y+=(-22)*dt;if(z.vel.y<-30)z.vel.y=-30;
+
+    function zMove(axis,val){const np=z.pos.clone();np[axis]+=val*dt;if(!zCollide(np))z.pos[axis]=np[axis];else if(axis==='y'){if(val<0)z.grnd=true;z.vel.y=0;}}
+    z.grnd=false;zMove('x',z.vel.x);zMove('z',z.vel.z);zMove('y',z.vel.y);
+
+    // engelden zıpla
+    if(z.grnd&&dist<16){const ax=z.pos.x+(tp.x||0)*.7,az=z.pos.z+(tp.z||0)*.7;if(solid(ax,z.pos.y+.2,az)&&!solid(ax,z.pos.y+1.3,az)){z.vel.y=8;z.grnd=false;}}
+
+    z.mesh.position.copy(z.pos);
+    z.wt+=dt*2;
+    const wa=Math.sin(z.wt*5)*.5;
+    z.mesh.userData.lL.rotation.x=wa;z.mesh.userData.lR.rotation.x=-wa;
+    z.mesh.userData.aL.rotation.x=-wa*.8-.4;z.mesh.userData.aR.rotation.x=wa*.8-.4;
+
+    z.atk-=dt;
+    if(dist<1.1&&z.atk<=0){dmgPlayer(2);z.atk=1.1;}
+
+    // ─ Gündüz yanma mekaniği ─
+    const inWater=getB(Math.floor(z.pos.x),Math.floor(z.pos.y),Math.floor(z.pos.z))===BLOCK.WATER;
+    if(isDay && !inWater && canSeeSky(z.pos.x,z.pos.y,z.pos.z)){
+      z.burning+=dt;
+      if(!z.fireMesh) addFireVisual(z);
+      if(z.burning>=1){ // saniyede 1 hasar
+        z.burning-=1;
+        z.health-=1;
+      }
+    } else {
+      z.burning=0;
+      if(z.fireMesh) removeFireVisual(z);
+    }
+  }
+}
+
+// ─── GÜN/GECE ────────────────────────────────────────────────────────
+let gameTime=DAY_LEN*.25;
+let spawnTimer=0;
+
+function updateDayNight(dt){
+  gameTime+=dt;if(gameTime>=DAY_LEN)gameTime-=DAY_LEN;
+  const t=gameTime/DAY_LEN;
+  const sh=Math.sin(t*Math.PI*2-Math.PI/2);
+  const sd=new THREE.Vector3(Math.cos(t*Math.PI*2),sh,Math.sin(t*Math.PI*2)*.5);
+
+  sun.position.copy(sd).multiplyScalar(80).add(camera.position);
+  moon.position.copy(sd).multiplyScalar(-80).add(camera.position);
+  sunMesh.position.copy(sd).multiplyScalar(150).add(camera.position);
+  moonMesh.position.copy(sd).multiplyScalar(-150).add(camera.position);
+  sunMesh.lookAt(camera.position);moonMesh.lookAt(camera.position);
+
+  const dayF=Math.max(0,sh),nightF=Math.max(0,-sh);
+  sun.intensity=dayF;moon.intensity=nightF*.35;
+  ambient.intensity=.2+dayF*.6+nightF*.07;
+  sunMesh.material.opacity=Math.min(1,dayF*3);
+  moonMesh.material.opacity=Math.min(1,nightF*3);
+  starMat.opacity=Math.min(.9,nightF*2.5);
+
+  // Gökyüzü rengi
+  const col = sh>.2? 0x4a90d9 : sh>-.1? 0xff7a4a : sh>-.3? 0x1a2a4a : 0x02020a;
+  const fogCol = sh>.2? 0xbfe3ff : sh>0? 0xffc87a : 0x0a0a1a;
+  scene.background.setHex(col);scene.fog.color.setHex(fogCol);
+
+  const hours=Math.floor(t*24),mins=Math.floor((t*1440)%60);
+  document.getElementById('timeText').textContent=String(hours).padStart(2,'0')+':'+String(mins).padStart(2,'0');
+  document.getElementById('sunmoon').textContent=sh>0?'☀️':'🌙';
+
+  const isNight=sh<-.05;
+  spawnTimer+=dt;
+  if(isNight&&spawnTimer>3){spawnTimer=0;if(Math.random()<.8)spawnZombie();}
+  else if(!isNight&&spawnTimer>8){spawnTimer=0;}
+
+  return isNight;
+}
+
+// ─── UI ──────────────────────────────────────────────────────────────
+function buildHotbarUI(){
+  const hb=document.getElementById('hotbar');hb.innerHTML='';
+  HOTBAR.forEach((b,i)=>{
+    const sl=document.createElement('div');sl.className='slot'+(i===0?' active':'');
+    const cn=document.createElement('canvas');cn.width=cn.height=38;
+    const ctx=cn.getContext('2d');ctx.imageSmoothingEnabled=false;
+    let src;
+    switch(b){
+      case BLOCK.GRASS:src=tGrassTop();break;case BLOCK.DIRT:src=tDirt();break;case BLOCK.STONE:src=tStone();break;
+      case BLOCK.WOOD:src=tWoodTop();break;case BLOCK.PLANK:src=tPlank();break;case BLOCK.SAND:src=tSand();break;
+      case BLOCK.LEAVES:src=tLeaves();break;case BLOCK.SNOW:src=tSnow();break;default:src=tStone();
+    }
+    ctx.drawImage(src,0,0,38,38);sl.appendChild(cn);
+    sl.addEventListener('click',()=>selectSlot(i));
+    sl.addEventListener('touchstart',e=>{e.preventDefault();selectSlot(i);});
+    hb.appendChild(sl);
+  });
+}
+
+function updateHealthUI(){
+  const hb=document.getElementById('healthbar');hb.innerHTML='';
+  const total=player.maxHealth/2,full=Math.floor(player.health/2),half=(player.health%2)===1;
+  for(let i=0;i<total;i++){
+    const d=document.createElement('div');d.className='heart';
+    const red='#e8453c',dark='#7a1f1a',empty='#555';
+    if(i<full)d.innerHTML=`<svg viewBox="0 0 18 16"><path d="M9 15C9 15 1 9.5 1 5.2C1 2.6 3 1 5.2 1C7 1 8.6 2 9 3.4C9.4 2 11 1 12.8 1C15 1 17 2.6 17 5.2C17 9.5 9 15 9 15Z" fill="${red}" stroke="${dark}" stroke-width=".8"/></svg>`;
+    else if(i===full&&half)d.innerHTML=`<svg viewBox="0 0 18 16"><path d="M9 15C9 15 1 9.5 1 5.2C1 2.6 3 1 5.2 1C7 1 8.4 2 9 3.2V15Z" fill="${red}" stroke="${dark}" stroke-width=".8"/><path d="M9 15C9 15 17 9.5 17 5.2C17 2.6 15 1 12.8 1C11 1 9.6 2 9 3.2V15Z" fill="${empty}" stroke="${dark}" stroke-width=".8"/></svg>`;
+    else d.innerHTML=`<svg viewBox="0 0 18 16"><path d="M9 15C9 15 1 9.5 1 5.2C1 2.6 3 1 5.2 1C7 1 8.6 2 9 3.4C9.4 2 11 1 12.8 1C15 1 17 2.6 17 5.2C17 9.5 9 15 9 15Z" fill="${empty}" stroke="${dark}" stroke-width=".8"/></svg>`;
+    hb.appendChild(d);
+  }
+}
+
+// ─── BAŞLANGIÇ ───────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+let started=false;
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('blocker').style.display='none';
+  if(!isMobile())canvas.requestPointerLock();
+  started=true;
+});
+document.getElementById('respawnBtn').addEventListener('click',()=>{
+  player.health=player.maxHealth;player.alive=true;
+  player.pos.set(0,surfH(0,0)+2,0);player.vel.set(0,0,0);
+  document.getElementById('deathScreen').style.display='none';
+  updateHealthUI();
+  if(!isMobile())canvas.requestPointerLock();
+});
+
+// Dünyayı oluştur
+console.log('Dünya oluşturuluyor...');
+genWorld();
+buildMesh();
+buildHotbarUI();
+updateHealthUI();
+
+// Başlangıç oyuncu konumu
+player.pos.set(0,surfH(0,0)+2,0);
+camera.position.copy(player.pos);
+console.log('Hazır. Blok sayısı:',world.size,'Başlangıç y:',player.pos.y);
+
+let lastT=performance.now(),frames=0,fpsT=0;
+
+function loop(){
+  requestAnimationFrame(loop);
+  const now=performance.now();
+  let dt=Math.min((now-lastT)/1000,.05);lastT=now;
+  frames++;fpsT+=dt;
+  if(fpsT>=1){document.getElementById('fps').textContent='FPS:'+frames;frames=0;fpsT=0;}
+
+  if(started){
+    updatePlayer(dt);
+    const isNight=updateDayNight(dt);
+    updateZombies(dt,!isNight);
+    if(needRebuild){buildMesh();needRebuild=false;}
+  }
+  renderer.render(scene,camera);
+}
+loop();
+})();
+</script>
+</body>
+</html>
